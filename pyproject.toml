@@ -1,0 +1,6 @@
+[project]
+name = "comfycode"
+version = "0.1.0"
+description = "A developer-focused framework for AI image generation using a ComfyUI server deployed on RunPod GPUs"
+requires-python = ">=3.12"
+dependencies = []
