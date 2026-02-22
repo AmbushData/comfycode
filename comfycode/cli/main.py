@@ -21,11 +21,32 @@ Usage::
     python -m comfycode path/to/workflow.json
 """
 
-# Delegate to cli package
-from comfycode.cli.main import main
+import argparse
+import json
+import sys
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+from comfycode.interop import convert, export_from_module, ExportError
+
+
+def cmd_convert(args: argparse.Namespace) -> int:
+    """Handle the convert command."""
+    try:
+        with open(args.workflow, encoding="utf-8") as f:
+            workflow = json.load(f)
+    except FileNotFoundError:
+        print(f"Error: File not found: {args.workflow}", file=sys.stderr)
+        return 1
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON in {args.workflow}: {e}", file=sys.stderr)
+        return 1
+
+    code = convert(workflow)
+
+    if args.output == "-":
+        sys.stdout.write(code)
+    else:
+        with open(args.output, "w", encoding="utf-8") as f:
+            f.write(code)
     
     return 0
 
@@ -40,7 +61,7 @@ def cmd_export(args: argparse.Namespace) -> int:
 
     # Convert to UI JSON if requested
     if getattr(args, "ui", False):
-        from comfycode.ui_export import prompt_to_ui_json
+        from comfycode.interop import prompt_to_ui_json
         result = prompt_to_ui_json(prompt)
     else:
         result = prompt

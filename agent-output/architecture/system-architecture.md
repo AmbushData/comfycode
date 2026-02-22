@@ -12,6 +12,8 @@
 | 2026-02-22 | Reconciled interop implementation + scoped AI Influencer platform | Keep doc aligned to current codebase; define next epic architecture (file-based Azure storage, LoRA/asset registry, workflow taxonomy, tuning agents) | Plan 003 implemented; AI Influencer epic requirements |
 | 2026-02-22 | Added D008: Pydantic as default validation standard | Standardize on Pydantic v2 models for runtime validation + typed contracts; JSON Schema may be generated for tooling | Plan 004 implementation |
 | 2026-02-22 | Added Workflow Expert agent role | Define specialized agent for ComfyUI workflow creation/improvement/validation with deep domain knowledge | User request for workflow expertise agent |
+| 2026-02-22 | Added D009: RunPod as production GPU runtime | Confirm RunPod over Google Colab for stable, scriptable GPU compute with persistent storage and direct ingress | User decision on production runtime platform |
+| 2026-02-22 | Portability + IaC + CI/CD assessment | Define required package boundaries, Pulumi-based infra, and CI/CD baseline before production planning | Findings 004 portability/IaC/CI/CD |
 
 ---
 
@@ -183,6 +185,11 @@ AI Influencer platform persistence boundaries:
 - **Reproducibility**: deterministic layout + `uv.lock` support stable environments.
 - **UX Flexibility**: Python-first workflow remains primary; UI is optional tooling.
 
+Portability / production readiness attributes (required as the codebase grows):
+- **Portability**: reproducible environments, minimal implicit system dependencies, and clear install/run paths.
+- **Modularity**: package boundaries that match domains (interop vs runtime vs clients vs registry).
+- **Deployability**: infra is codified and repeatable; CI/CD is the default path for changes.
+
 ---
 
 ## Problem Areas / Design Debt
@@ -197,6 +204,12 @@ AI Influencer platform (next epic) design gaps:
 - No quality gates or scoring to select “best” variants from large batches.
 - No workflow taxonomy and packaging structure for photo vs LoRA vs video workflows.
 - No automated documentation generation for workflow/library inventory.
+
+Portability / production readiness gaps:
+- Current Python modules are mostly flat under `comfycode/`, which will not scale as features expand.
+- Infrastructure definitions (Azure Storage) are not codified as IaC in-repo.
+- CI/CD is not defined for testing/building/deploying infra/runtime changes.
+- Build artifacts (e.g., `*.egg-info/`) risk being mistaken for source; must be treated as generated output only.
 
 ---
 
@@ -295,6 +308,68 @@ AI Influencer platform (next epic) design gaps:
 - Prefer Pydantic for any new “schema-like” validation (request/response payloads, manifests, registry entries, config objects).
 - Use lightweight checks (simple `if`/`raise`) only for tiny invariants where introducing a model would be overkill.
 - If external consumers need a language-agnostic contract, export JSON Schema from Pydantic rather than maintaining parallel schema files.
+### D009 — RunPod as production GPU runtime
+
+- **Context**: Need stable, controllable GPU compute for ComfyUI workloads with UI access for debugging and API-based production execution. Evaluated RunPod vs Google Colab.
+- **Choice**: Use **RunPod** as the production GPU runtime platform.
+  - Persistent pods with fixed GPU allocation and stable networking
+  - Public port exposure without ngrok (ComfyUI UI on 8188, optional Jupyter on 8888)
+  - Scriptable provisioning via API/CLI for CI/CD integration
+  - Persistent volume support for models/outputs/datasets
+  - Deterministic GPU selection (A10/A100/4090) with pay-per-use billing
+- **Alternatives**: Google Colab (interactive, ephemeral, requires tunneling, limited automation); on-premise GPU infrastructure.
+- **Consequences**:
+  - + Stable service lifecycle for production workflows
+  - + Reproducible GPU environment across runs
+  - + Direct ingress without tunneling complexity
+  - + API-driven provisioning supports CI/CD
+  - + Persistent storage eliminates session loss
+  - − Infrastructure cost (pay for uptime vs flat Colab subscription)
+  - − Requires explicit security (access control, IP allowlisting, tokens)
+
+**Deployment pattern**:
+- ComfyUI server exposed on public port with token/basic auth
+- Optional Jupyter Lab for interactive notebook exploration
+- Mounted volume for models/LoRAs/datasets + Azure Blob for large artifact sync
+- `comfycode.runpod_client` manages pod lifecycle
+
+### D010 — Package-by-domain module structure
+
+- **Context**: Project portability and maintainability require clear, stable module boundaries as the codebase grows beyond a small number of files.
+- **Choice**: Organize Python code as **package-by-domain** submodules under `comfycode/` (incremental refactor, test-protected).
+  - Target domains (illustrative): `cli/`, `clients/`, `workflows/`, `interop/`, `pipeline/`, `registry/`, `config/`.
+  - Keep public surface area stable; if breaking changes are unavoidable, version explicitly.
+- **Alternatives**: Keep a flat module layout; split by technical layer only.
+- **Consequences**:
+  - + Easier navigation and clearer ownership boundaries
+  - + Improved testability (narrow dependencies)
+  - − Refactor cost; requires staged migration and careful imports
+
+### D011 — Pulumi as IaC for Azure persistence
+
+- **Context**: Storage account + containers (and optional Tables) must be reproducible across environments.
+- **Choice**: Use **Pulumi** (Python) as Infrastructure-as-Code for Azure persistence primitives.
+  - IaC lives in-repo under a dedicated boundary (e.g., `infra/`).
+  - Secrets must be managed via Pulumi config/secret providers and CI secrets, not committed.
+- **Alternatives**: Manual provisioning; ARM/Bicep/Terraform.
+- **Consequences**:
+  - + Repeatable environments and safer changes via preview/apply
+  - + Fits Python-first engineering stack
+  - − Adds tooling surface and CI credentials management requirements
+
+### D012 — CI/CD as the default change path
+
+- **Context**: Production readiness requires automated quality gates and repeatable deployment.
+- **Choice**: Establish CI/CD (e.g., GitHub Actions) for:
+  - test/lint/build on PR
+  - Pulumi preview on PR (optional but recommended)
+  - Pulumi apply on main/tag with approval gates
+  - artifact strategy for RunPod runtime (container image or template sync) explicitly defined
+- **Alternatives**: Run everything manually from developer machines.
+- **Consequences**:
+  - + Safer, repeatable deployments
+  - + Clear audit trail of infra/runtime changes
+  - − Requires initial setup effort and secret management
 ---
 
 ## Roadmap Readiness

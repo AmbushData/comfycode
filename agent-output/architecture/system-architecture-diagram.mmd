@@ -1,4 +1,13 @@
 flowchart LR
+  subgraph CICD[CI/CD]
+    GHA[GitHub Actions\n(test/build/deploy)]
+  end
+
+  subgraph IaC[Infrastructure as Code]
+    SETTINGS[Settings (non-secret)\n(Pydantic schema)]
+    PULUMI[Pulumi (Python)\n(preview/apply)]
+  end
+
   subgraph Repo[Git Repo (Text Source of Truth)]
     REGMETA[Registry metadata\n(JSON/YAML)]
     WFDEF[Workflow definitions\n(photo / lora / video)]
@@ -66,5 +75,10 @@ flowchart LR
   DOCS --> REG
   DOCS --> WFLIB
   DOCS --> REGMETA
+
+  GHA -->|runs| PULUMI
+  SETTINGS --> PULUMI
+  PULUMI -->|provisions| BLOB
+  PULUMI -->|provisions| TABLE
 
   PJSON --> CCLIENT --> COMFY --> GPU

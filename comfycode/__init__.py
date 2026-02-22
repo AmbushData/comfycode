@@ -10,12 +10,11 @@ batch           Batch processing – structured multi-prompt execution.
 pipeline        Top-level entry point tying all layers together.
 """
 
+# Re-export from new package locations for backward compatibility
 from .config import Config
-from .runpod_client import RunPodClient
-from .comfyui_client import ComfyUIClient
-from .workflow import Node, NodeOutput, Workflow, WorkflowError
-from .batch import BatchProcessor
-from .pipeline import Pipeline
+from .clients import RunPodClient, ComfyUIClient
+from .workflows import Node, NodeOutput, Workflow, WorkflowError
+from .pipeline import BatchProcessor, Pipeline
 
 __all__ = [
     "Config",
