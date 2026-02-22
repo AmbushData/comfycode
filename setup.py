@@ -5,7 +5,7 @@ setup(
     version="0.1.0",
     description="Programmatic AI image generation framework built on ComfyUI and RunPod",
     packages=find_packages(exclude=["tests*"]),
-    python_requires=">=3.9",
+    python_requires=">=3.10",
     install_requires=[
         "requests>=2.31.0",
         "websocket-client>=1.7.0",

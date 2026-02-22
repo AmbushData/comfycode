@@ -1,10 +1,4 @@
-"""comfycode — programmatic ComfyUI workflow builder and converter."""
-
-from comfycode.workflow import Node, NodeOutput, Workflow
-
-__all__ = ["Node", "NodeOutput", "Workflow"]
-"""
-comfycode – Programmatic AI image generation framework built on ComfyUI and RunPod.
+"""comfycode – Programmatic AI image generation framework built on ComfyUI and RunPod.
 
 Layers
 ------
@@ -19,7 +13,7 @@ pipeline        Top-level entry point tying all layers together.
 from .config import Config
 from .runpod_client import RunPodClient
 from .comfyui_client import ComfyUIClient
-from .workflow import Workflow
+from .workflow import Node, NodeOutput, Workflow, WorkflowError
 from .batch import BatchProcessor
 from .pipeline import Pipeline
 
@@ -27,7 +21,11 @@ __all__ = [
     "Config",
     "RunPodClient",
     "ComfyUIClient",
+    "Node",
+    "NodeOutput",
     "Workflow",
+    "WorkflowError",
     "BatchProcessor",
     "Pipeline",
 ]
+

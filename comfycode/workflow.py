@@ -1,11 +1,37 @@
-"""Core workflow classes for building ComfyUI workflows programmatically."""
+"""Workflow templating and programmatic building for ComfyUI.
 
+This module provides two complementary approaches to creating ComfyUI workflows:
+
+1. **Programmatic building** — Use :meth:`Workflow.add_node` to construct
+   workflows node-by-node in Python (used by the JSON-to-Python converter).
+
+2. **Template loading** — Use :meth:`Workflow.from_file` to load existing JSON
+   workflows and inject parameters (used by Pipeline/BatchProcessor).
+
+Both approaches produce the same prompt dict format that ComfyUI expects.
+"""
+
+from __future__ import annotations
+
+import copy
 import json
+import logging
+from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
+
+
+class WorkflowError(Exception):
+    """Raised when a workflow is malformed or a requested node is not found."""
 
 
 class NodeOutput:
-    """Represents a single output slot of a workflow node."""
+    """Represents a single output slot of a workflow node.
+
+    Used when programmatically building workflows to wire node outputs
+    to other node inputs.
+    """
 
     def __init__(self, node: "Node", index: int) -> None:
         self.node = node
@@ -17,7 +43,10 @@ class NodeOutput:
 
 
 class Node:
-    """Represents a single node in a ComfyUI workflow."""
+    """Represents a single node in a ComfyUI workflow.
+
+    Used when programmatically building workflows via :meth:`Workflow.add_node`.
+    """
 
     def __init__(self, node_id: str, class_type: str, **inputs: Any) -> None:
         self.node_id = node_id
@@ -40,79 +69,32 @@ class Node:
 
 
 class Workflow:
-    """Builds and serializes a ComfyUI workflow (API prompt format)."""
+    """A ComfyUI prompt graph with building and parameter-injection helpers.
 
-    def __init__(self) -> None:
-        self._nodes: dict[str, Node] = {}
-        self._counter: int = 1
+    Supports two construction modes:
 
-    def add_node(self, class_type: str, **inputs: Any) -> Node:
-        """Add a new node and return it so its outputs can be wired to other nodes."""
-        node_id = str(self._counter)
-        self._counter += 1
-        node = Node(node_id, class_type, **inputs)
-        self._nodes[node_id] = node
-        return node
+    1. **From scratch** — Call ``Workflow()`` with no arguments, then use
+       :meth:`add_node` to build programmatically.
 
-    def build(self) -> dict:
-        """Return the complete workflow as a dict in the ComfyUI API prompt format."""
-        return {node_id: node.to_dict() for node_id, node in self._nodes.items()}
-
-    def to_json(self, **kwargs: Any) -> str:
-        """Serialize the workflow to a JSON string."""
-        return json.dumps(self.build(), **kwargs)
-
-    @classmethod
-    def from_json(cls, data: "str | dict") -> "Workflow":
-        """Load a workflow from a JSON string or dict (ComfyUI API prompt format)."""
-        if isinstance(data, str):
-            data = json.loads(data)
-        workflow = cls()
-        for node_id, node_data in data.items():
-            node = Node(node_id, node_data["class_type"], **node_data.get("inputs", {}))
-            workflow._nodes[node_id] = node
-        numeric_ids = [int(nid) for nid in data if nid.isdigit()]
-        if numeric_ids:
-            workflow._counter = max(numeric_ids) + 1
-        return workflow
-"""Workflow templating and parameterization.
-
-A :class:`Workflow` wraps a ComfyUI JSON prompt graph and provides helpers
-for injecting parameters (positive/negative prompts, model checkpoint, seed,
-dimensions, sampler settings) into specific nodes by their *class type* or
-by an explicit *node ID*.
-
-Workflows can be loaded from JSON files on disk so that the graph structure
-is version-controlled separately from the Python code that runs it.
-"""
-
-from __future__ import annotations
-
-import copy
-import json
-import logging
-from pathlib import Path
-from typing import Any
-
-logger = logging.getLogger(__name__)
-
-
-class WorkflowError(Exception):
-    """Raised when a workflow is malformed or a requested node is not found."""
-
-
-class Workflow:
-    """A ComfyUI prompt graph with parameter-injection helpers.
+    2. **From template** — Call :meth:`from_file` or :meth:`from_dict` to
+       load an existing workflow, then use setters like :meth:`set_seed`.
 
     Parameters
     ----------
     graph:
-        The raw ComfyUI prompt dict (maps node IDs → node dicts, each
-        containing ``"class_type"`` and ``"inputs"`` keys).
+        Optional raw ComfyUI prompt dict.  If provided, the workflow
+        operates in template mode.  If omitted, starts with an empty
+        graph for programmatic building.
 
     Examples
     --------
-    Load from a JSON file and set a positive prompt:
+    Build from scratch:
+
+    >>> wf = Workflow()
+    >>> ckpt = wf.add_node("CheckpointLoaderSimple", ckpt_name="model.ckpt")
+    >>> prompt_dict = wf.build()
+
+    Load from a JSON file and set parameters:
 
     >>> wf = Workflow.from_file("workflows/txt2img.json")
     >>> wf.set_positive_prompt("a red fox in a snowy forest")
@@ -120,12 +102,22 @@ class Workflow:
     >>> prompt_dict = wf.build()
     """
 
-    def __init__(self, graph: dict[str, Any]) -> None:
-        # Keep the original untouched; work on a deep copy.
-        self._graph: dict[str, Any] = copy.deepcopy(graph)
+    def __init__(self, graph: dict[str, Any] | None = None) -> None:
+        if graph is not None:
+            # Template mode: work on a deep copy.
+            self._graph: dict[str, Any] = copy.deepcopy(graph)
+            self._nodes: dict[str, Node] = {}
+            # Start counter past the highest existing numeric node ID.
+            numeric_ids = [int(nid) for nid in graph if nid.isdigit()]
+            self._counter: int = max(numeric_ids) + 1 if numeric_ids else 1
+        else:
+            # Programmatic building mode: start empty.
+            self._graph = {}
+            self._nodes = {}
+            self._counter = 1
 
     # ------------------------------------------------------------------
-    # Constructors
+    # Constructors (template mode)
     # ------------------------------------------------------------------
 
     @classmethod
@@ -150,17 +142,48 @@ class Workflow:
         """Create a :class:`Workflow` from an existing prompt dict."""
         return cls(graph)
 
+    @classmethod
+    def from_json(cls, data: str | dict) -> "Workflow":
+        """Load a workflow from a JSON string or dict (ComfyUI API prompt format)."""
+        if isinstance(data, str):
+            data = json.loads(data)
+        return cls(data)
+
     # ------------------------------------------------------------------
-    # High-level parameter setters
+    # Programmatic building (add_node mode)
+    # ------------------------------------------------------------------
+
+    def add_node(self, class_type: str, **inputs: Any) -> Node:
+        """Add a new node and return it so its outputs can be wired to other nodes.
+
+        This method is used for programmatic workflow construction.
+
+        Parameters
+        ----------
+        class_type:
+            The ComfyUI node class type (e.g., ``"KSampler"``).
+        **inputs:
+            Keyword arguments for the node inputs.  Values can be
+            :class:`NodeOutput` instances to wire connections.
+
+        Returns
+        -------
+        Node
+            The created node, whose :meth:`Node.output` method can be
+            used to connect to other nodes.
+        """
+        node_id = str(self._counter)
+        self._counter += 1
+        node = Node(node_id, class_type, **inputs)
+        self._nodes[node_id] = node
+        return node
+
+    # ------------------------------------------------------------------
+    # High-level parameter setters (template mode)
     # ------------------------------------------------------------------
 
     def set_positive_prompt(self, text: str) -> "Workflow":
-        """Inject *text* into the ``text`` input of all ``CLIPTextEncode``
-        nodes wired to a ``KSampler`` as the positive conditioning.
-
-        Falls back to setting *all* ``CLIPTextEncode`` nodes whose first
-        appearance in the graph has a ``text`` key.
-        """
+        """Inject *text* into the positive conditioning ``CLIPTextEncode`` nodes."""
         positive_ids = self._find_ksampler_conditioning_ids("positive")
         if positive_ids:
             for node_id in positive_ids:
@@ -264,13 +287,24 @@ class Workflow:
         """Return all node IDs whose ``class_type`` matches *class_type*."""
         return self._find_nodes_by_class(class_type)
 
-    def build(self) -> dict[str, Any]:
-        """Return the final prompt dict ready to be submitted to ComfyUI."""
-        return copy.deepcopy(self._graph)
+    # ------------------------------------------------------------------
+    # Serialization
+    # ------------------------------------------------------------------
 
-    def to_json(self, indent: int = 2) -> str:
-        """Serialise the current graph to a JSON string."""
-        return json.dumps(self._graph, indent=indent)
+    def build(self) -> dict[str, Any]:
+        """Return the final prompt dict ready to be submitted to ComfyUI.
+
+        Merges the template graph with any programmatically added nodes.
+        """
+        result: dict[str, Any] = copy.deepcopy(self._graph)
+        # Add any programmatically-added nodes.
+        for node_id, node in self._nodes.items():
+            result[node_id] = node.to_dict()
+        return result
+
+    def to_json(self, indent: int = 2, **kwargs: Any) -> str:
+        """Serialize the workflow to a JSON string."""
+        return json.dumps(self.build(), indent=indent, **kwargs)
 
     # ------------------------------------------------------------------
     # Private helpers
