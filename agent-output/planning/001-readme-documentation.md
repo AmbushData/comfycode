@@ -11,6 +11,8 @@ Status: QA Complete
 **Epic Alignment:** Epic 0.1 — Comprehensive Developer Documentation
 **Created:** 2026-02-22
 
+**Semver rationale:** PATCH (v0.1.0 → v0.1.1) because this release contains documentation/tooling corrections only, with no intended API changes.
+
 ## Change Log
 | Date | Agent | Change | Notes |
 |------|-------|--------|-------|
@@ -55,7 +57,8 @@ Deliver a single-file README that enables a new developer to:
 - Example workflows exist in `workflows/` (e.g., `txt2img.json`, `img2img.json`)
 
 ## Assumptions
-- “First workflow” success for onboarding can be satisfied by running the converter against `workflows/txt2img.json` (no external services required)
+- Authoritative Python version is **3.10+** (`pyproject.toml` / `setup.py` aligned on `>=3.10`).
+- “First workflow” success for onboarding can be satisfied by running the converter against `workflows/txt2img.json` (no external services required), e.g. `python -m comfycode workflows/txt2img.json`.
 - The README will also describe the *optional* execution path (requires a running ComfyUI server and optionally RunPod)
 - README length target: ~200–400 lines (concise but complete)
 

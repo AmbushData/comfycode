@@ -19,6 +19,7 @@ Status: Implemented
 | 2026-02-22 | Planner | Handoff to Critic | User approved handoff; ready for critique |
 | 2026-02-22 | Critic | Approved | 4 findings (1 MEDIUM, 3 LOW); see critique |
 | 2026-02-22 | Implementer | Milestones 1–4 complete | See implementation doc |
+| 2026-02-22 | Planner | Resolved non-blocking questions | Documented clone URL + requirements.txt disposition decisions |
 
 ---
 
@@ -51,10 +52,15 @@ Make developer setup reproducible and documentation accurate by:
 - It is acceptable to treat `pyproject.toml` as the dependency source of truth.
 - Adding a lockfile (`uv.lock`) is acceptable to commit to the repository.
 
-## OPEN QUESTION (Non-blocking)
+## OPEN QUESTION [RESOLVED]
 
 - What is the canonical repository URL to use in README clone instructions?
+  - **Resolution**: Keep clone instructions **generic** (template) rather than hard-coding a specific org URL.
+
+## OPEN QUESTION [RESOLVED]
+
 - Should `requirements.txt` remain supported (kept in sync) or be deprecated in favor of `pyproject.toml` + `uv.lock`?
+  - **Resolution**: Keep `requirements.txt` for backward compatibility, but treat `pyproject.toml` as the source of truth.
 
 ## Scope
 

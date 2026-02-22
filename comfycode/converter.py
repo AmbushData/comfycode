@@ -1,8 +1,25 @@
-"""Convert a ComfyUI workflow (API prompt JSON) into equivalent Python code."""
+"""Convert a ComfyUI workflow (API prompt JSON) into equivalent Python code.
+
+This module provides two conversion paths:
+
+1. ``convert(workflow)`` — Direct prompt JSON to Python (original, lean path).
+2. ``ir_to_python(ir)`` — IR to Python (for use with other IR-based conversions).
+
+Design Note: The direct ``convert()`` function does not use the IR because:
+- JSON → Python doesn't benefit from layout metadata
+- The direct path is simpler and well-tested
+- Keeping it separate avoids unnecessary abstraction for a simple use case
+
+The IR-based path exists for consistency with other conversions (e.g., future
+UI JSON → IR → Python flows).
+"""
 
 import json
 import re
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from comfycode.ir import WorkflowIR
 
 
 def _to_var_name(class_type: str) -> str:
@@ -103,3 +120,23 @@ def convert(workflow: "dict | str") -> str:
 
     lines += ["", "prompt = workflow.build()"]
     return "\n".join(lines) + "\n"
+
+
+def ir_to_python(ir: "WorkflowIR") -> str:
+    """Convert a WorkflowIR to Python source code.
+
+    This function provides an IR-based path to Python code generation,
+    for consistency with other IR-based conversions.
+
+    Args:
+        ir: A WorkflowIR instance.
+
+    Returns:
+        A string containing the equivalent Python source code.
+    """
+    from comfycode.ir import ir_to_prompt_json
+
+    # Convert IR back to prompt JSON, then use the existing convert function.
+    # This ensures consistent output formatting and behavior.
+    prompt = ir_to_prompt_json(ir)
+    return convert(prompt)

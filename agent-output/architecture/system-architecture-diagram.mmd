@@ -1,0 +1,31 @@
+flowchart LR
+  subgraph DevUX[Developer UX]
+    PY[Python workflow code]
+    PJSON[Prompt JSON\n(ComfyUI API format)]
+    UIJSON[UI Workflow JSON\n(ComfyUI UI import/export)]
+  end
+
+  subgraph Core[ComfyCode Core]
+    IR[Workflow IR\n(nodes/edges/metadata/layout-hints)]
+    WF[Workflow builder\n(comfycode.workflow)]
+    CONV[Converter\n(comfycode.converter)]
+  end
+
+  subgraph Exec[Execution]
+    CCLIENT[ComfyUIClient\n(REST + WebSocket)]
+    COMFY[ComfyUI Server]
+  end
+
+  PJSON -->|parse| IR
+  IR -->|emit| PJSON
+
+  UIJSON -->|parse| IR
+  IR -->|emit + layout| UIJSON
+
+  PJSON -->|JSON→Python (today)| CONV
+  CONV --> PY
+
+  PY -->|execution-based export (proposed)| WF
+  WF -->|build()| PJSON
+
+  PJSON --> CCLIENT --> COMFY

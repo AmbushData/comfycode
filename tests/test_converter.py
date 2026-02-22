@@ -6,7 +6,8 @@ import textwrap
 
 import pytest
 
-from comfycode.converter import convert, _to_var_name
+from comfycode.converter import convert, ir_to_python, _to_var_name
+from comfycode.ir import prompt_json_to_ir
 
 WORKFLOWS_DIR = pathlib.Path(__file__).parent.parent / "workflows"
 
@@ -185,3 +186,62 @@ class TestConvertExampleWorkflows:
         namespace: dict = {}
         exec(compile(code, "<string>", "exec"), namespace)  # noqa: S102
         assert isinstance(namespace["prompt"], dict)
+
+
+class TestIRToPython:
+    """Tests for the IR-based Python code generation."""
+
+    SIMPLE_WORKFLOW = {
+        "1": {
+            "class_type": "CheckpointLoaderSimple",
+            "inputs": {"ckpt_name": "model.ckpt"},
+        },
+        "2": {
+            "class_type": "KSampler",
+            "inputs": {
+                "seed": 42,
+                "model": ["1", 0],
+            },
+        },
+    }
+
+    def test_ir_to_python_produces_valid_code(self):
+        """IR-based conversion produces executable Python code."""
+        ir = prompt_json_to_ir(self.SIMPLE_WORKFLOW)
+        code = ir_to_python(ir)
+        namespace: dict = {}
+        exec(compile(code, "<string>", "exec"), namespace)  # noqa: S102
+        assert isinstance(namespace["prompt"], dict)
+
+    def test_ir_to_python_equivalent_to_convert(self):
+        """IR-based conversion produces functionally equivalent output to direct convert."""
+        # Direct conversion
+        direct_code = convert(self.SIMPLE_WORKFLOW)
+        direct_ns: dict = {}
+        exec(compile(direct_code, "<string>", "exec"), direct_ns)  # noqa: S102
+        direct_prompt = direct_ns["prompt"]
+
+        # IR-based conversion
+        ir = prompt_json_to_ir(self.SIMPLE_WORKFLOW)
+        ir_code = ir_to_python(ir)
+        ir_ns: dict = {}
+        exec(compile(ir_code, "<string>", "exec"), ir_ns)  # noqa: S102
+        ir_prompt = ir_ns["prompt"]
+
+        # Should have same class types
+        direct_types = {v["class_type"] for v in direct_prompt.values()}
+        ir_types = {v["class_type"] for v in ir_prompt.values()}
+        assert direct_types == ir_types
+
+    def test_ir_to_python_includes_workflow_import(self):
+        """Generated code imports Workflow class."""
+        ir = prompt_json_to_ir(self.SIMPLE_WORKFLOW)
+        code = ir_to_python(ir)
+        assert "from comfycode import Workflow" in code
+
+    def test_ir_to_python_calls_build(self):
+        """Generated code calls workflow.build()."""
+        ir = prompt_json_to_ir(self.SIMPLE_WORKFLOW)
+        code = ir_to_python(ir)
+        assert "workflow.build()" in code
+

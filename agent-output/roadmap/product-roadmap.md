@@ -8,6 +8,8 @@
 | Date & Time | Change | Rationale |
 |-------------|--------|-----------|
 | 2026-02-22 14:00 | Initial roadmap created | Establish strategic direction and track v0.1.x work |
+| 2026-02-22 16:30 | Added Epic 0.7 (UI interop + bidirectional conversion) | Support flexible UX with optional ComfyUI UI usage |
+| 2026-02-22 16:30 | Updated Active Release Tracker | Reflect plans executed for v0.1.1 |
 
 ---
 
@@ -126,6 +128,41 @@ So that **temporary network issues or pod restarts don't fail my entire batch**.
 
 ---
 
+### Epic 0.7: Workflow UI Interop & Bidirectional Conversion
+**Priority**: P1
+**Status**: Backlog
+
+**User Story**:
+As a **developer building ComfyCode workflows in Python**,
+I want **bidirectional conversion between Python and ComfyUI workflows (JSON) with pleasant visual layout for the UI**,
+So that **I can iterate programmatically most of the time while still using the ComfyUI UI when it’s helpful**.
+
+**Business Value**:
+- Enables a flexible user experience (Python-first + UI-assisted iteration)
+- Reduces friction when importing existing UI workflows into code
+- Makes it easier to debug, explore, and share workflows across developer/non-developer collaborators
+
+**Dependencies**:
+- Epic 0.1 (documentation + baseline workflow model)
+
+**Acceptance Criteria** (outcome-focused):
+- [ ] **JSON → Python** conversion remains supported and stable (existing CLI path)
+- [ ] **Python → prompt JSON** export is supported for workflows built with ComfyCode
+- [ ] **Prompt JSON → UI workflow JSON** export is supported with deterministic, visually readable node placement
+- [ ] Exported UI workflow JSON can be imported into the ComfyUI UI without manual repairs
+- [ ] Layout algorithm is deterministic (same graph → same positions) and avoids node overlap by default
+- [ ] UI metadata is preserved when converting from UI JSON (positions retained unless reflow is requested)
+
+**Constraints**:
+- Keep Python-first execution path canonical; UI interop is optional tooling
+- Avoid unsafe execution patterns for “code → JSON” export (must have guardrails/documented limitations)
+- No new UX surfaces beyond CLI/API needed to support conversion workflows
+
+**Status Notes**:
+- 2026-02-22: Added in response to flexible UX requirement; requires format contract and layout strategy
+
+---
+
 ## Release v0.3.0 - Ecosystem Integration (Future)
 **Target Date**: TBD
 **Strategic Goal**: Integrate with common developer workflows (CI/CD, cloud storage, notification systems).
@@ -208,11 +245,12 @@ So that **my workflows are reproducible across different ComfyUI servers**.
 
 | Plan ID | Title | UAT Status | Committed |
 |---------|-------|------------|----------|
-| *(No plans created yet)* | - | - | - |
+| 001 | README Developer Onboarding | Pending | No |
+| 002 | uv sync + Dev Dependencies + README Corrections | Pending | No |
 
-**Release Status**: 0 of 0 plans committed
+**Release Status**: 0 of 2 plans committed
 **Ready for Release**: No
-**Blocking Items**: Awaiting plan creation for Epic 0.1
+**Blocking Items**: DevOps version bump to v0.1.1 + UAT sign-off
 
 ### Previous Releases
 | Version | Date | Plans Included | Status |
