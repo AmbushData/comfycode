@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "comfycode"
+version = "0.1.0"
+description = "Programmatic ComfyUI workflow builder and JSON-to-Python converter"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+[project.scripts]
+comfycode = "comfycode.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["comfycode*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
