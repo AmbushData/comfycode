@@ -20,14 +20,14 @@ A developer-focused framework for AI image generation using ComfyUI servers depl
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/comfycode.git
+git clone <your-repo-url>
 cd comfycode
 
-# Install in development mode
-pip install -e .
+# Option A: Using uv (recommended)
+uv sync --all-extras
 
-# Or install directly
-pip install .
+# Option B: Using pip
+pip install -e .
 ```
 
 ### Dependencies
@@ -334,17 +334,28 @@ pipeline.teardown()
 
 ## Development
 
+### Setup
+
+```bash
+# Option A: Using uv (recommended, creates isolated env + lockfile)
+uv sync --all-extras
+
+# Option B: Using pip
+pip install -e ".[dev]"
+```
+
 ### Running Tests
 
 ```bash
-# Install development dependencies
-pip install -e ".[dev]"
+# With uv
+uv run pytest
 
-# Run all tests
+# With pip (after pip install)
 pytest
 
 # Run with coverage
-pytest --cov=comfycode --cov-report=term-missing
+uv run pytest --cov=comfycode --cov-report=term-missing
+# or: pytest --cov=comfycode --cov-report=term-missing
 
 # Run a specific test file
 pytest tests/test_workflow.py

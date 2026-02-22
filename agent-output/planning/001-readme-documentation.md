@@ -2,7 +2,7 @@
 ID: 001
 Origin: 001
 UUID: 9c7a1f2b
-Status: In Progress
+Status: QA Complete
 ---
 
 # Plan 001 — README Developer Onboarding (Epic 0.1)
@@ -16,6 +16,8 @@ Status: In Progress
 |------|-------|--------|-------|
 | 2026-02-22 | Planner | Created plan | Initial plan for Epic 0.1 (README onboarding) |
 | 2026-02-22 | Implementer | Started implementation | Critic approved; addressing F001 during impl |
+| 2026-02-22 | QA | QA execution complete | QA Failed — see `agent-output/qa/001-readme-documentation-qa.md` |
+| 2026-02-22 | QA | Re-validation complete | QA Complete — fixes delivered by Plan 002 |
 
 ---
 
