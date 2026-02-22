@@ -11,6 +11,7 @@
 | 2026-02-22 16:30 | Added Epic 0.7 (UI interop + bidirectional conversion) | Support flexible UX with optional ComfyUI UI usage |
 | 2026-02-22 16:30 | Updated Active Release Tracker | Reflect plans executed for v0.1.1 |
 | 2026-02-22 18:30 | Pivoted roadmap to AI Influencer MVP | Align releases/epics to new Master Product Objective and file-based Azure storage constraints |
+| 2026-02-22 | Added Workflow Expert agent | Define specialized agent for ComfyUI workflow expertise (node selection, model compatibility, creation/improvement/validation) to support workflow library development |
 
 ---
 

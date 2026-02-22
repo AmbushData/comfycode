@@ -10,7 +10,8 @@
 |------|--------|-----------|---------|
 | 2026-02-22 | Initial architecture doc created | Establish source-of-truth; capture implemented docs/tooling work and upcoming bidirectional conversion design | Plans 001–002; UX request (JSON↔Python↔UI) |
 | 2026-02-22 | Reconciled interop implementation + scoped AI Influencer platform | Keep doc aligned to current codebase; define next epic architecture (file-based Azure storage, LoRA/asset registry, workflow taxonomy, tuning agents) | Plan 003 implemented; AI Influencer epic requirements |
-| 2026-02-22 | Added D008: Pydantic models as schema source of truth | Registry schemas use Pydantic for type safety, validation, and IDE support; JSON Schema auto-generated for tooling | Plan 004 implementation |
+| 2026-02-22 | Added D008: Pydantic as default validation standard | Standardize on Pydantic v2 models for runtime validation + typed contracts; JSON Schema may be generated for tooling | Plan 004 implementation |
+| 2026-02-22 | Added Workflow Expert agent role | Define specialized agent for ComfyUI workflow creation/improvement/validation with deep domain knowledge | User request for workflow expertise agent |
 
 ---
 
@@ -274,11 +275,13 @@ AI Influencer platform (next epic) design gaps:
 - **Consequences**:
   - + enables reproducibility and responsible reuse
   - − requires lightweight metadata discipline
-### D008 — Pydantic models as schema source of truth (AI Influencer)
+### D008 — Pydantic as default validation standard
 
-- **Context**: Registry entries (characters, clothing, models, LoRAs, datasets) and batch manifests require validation and typed access. JSON Schema is language-agnostic but requires manual marshaling in Python.
-- **Choice**: Use **Pydantic models** as the source of truth for registry schemas. JSON Schema can be auto-generated from Pydantic models for external tooling (VS Code validation, documentation).
-- **Alternatives**: JSON Schema files with `jsonschema` validation; dataclasses.
+- **Context**: ComfyCode needs consistent, developer-friendly validation for structured inputs/outputs (registry entries, manifests, configuration-like payloads, and any typed data exchanged between modules). JSON Schema is language-agnostic but adds drift risk and requires manual marshaling in Python.
+- **Choice**: Use **Pydantic v2 models** as the **default** mechanism for runtime validation and typed data contracts in the Python codebase.
+  - Pydantic models are the **source of truth** for validation rules and serialization.
+  - JSON Schema may be **generated** from Pydantic for tooling and documentation, but is not the canonical contract.
+- **Alternatives**: JSON Schema files with `jsonschema` validation; ad-hoc validation; dataclasses + manual checks.
 - **Consequences**:
   - + Native Python type hints + IDE autocomplete
   - + Runtime validation with clearer error messages
@@ -287,6 +290,11 @@ AI Influencer platform (next epic) design gaps:
   - + Validators, computed fields, model inheritance supported
   - − Pydantic becomes a core dependency
   - − Minor version constraints (Pydantic v2+ required)
+
+**Usage guidance**:
+- Prefer Pydantic for any new “schema-like” validation (request/response payloads, manifests, registry entries, config objects).
+- Use lightweight checks (simple `if`/`raise`) only for tiny invariants where introducing a model would be overkill.
+- If external consumers need a language-agnostic contract, export JSON Schema from Pydantic rather than maintaining parallel schema files.
 ---
 
 ## Roadmap Readiness
@@ -374,9 +382,9 @@ NSFW handling requirements:
 ### Agent Roles (Required)
 
 Agents are scoped services that produce proposals + records:
+- **Workflow Expert**: ComfyUI workflow specialist with deep knowledge of nodes, models, parameters, and best practices. Creates, improves, and validates workflows. Knows model compatibility (SD1.5/SDXL/Flux), LoRA application, sampling parameters, and node selection. Ensures workflows follow taxonomy (photo/lora/video) and provenance requirements. Handoff to Implementer for ComfyCode Python translation.
 - **WorkflowTuner**: suggests prompt/control parameter changes for better realism/consistency.
 - **VariantPlanner**: generates parameter grids for batch runs (seeds/outfits/poses).
-- **QualityGate**: scores and filters outputs; outputs structured reasons.
 - **QualityGate**: scores and filters outputs; outputs structured reasons; includes NSFW labeling + routing.
 - **LoRATrainer**: orchestrates training job execution and registers resulting LoRA artifact.
 - **DatasetCurator**: manages clothing/character reference sets and dataset manifests.
