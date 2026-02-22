@@ -1,0 +1,5 @@
+Metadata-Version: 2.1
+Name: comfycode
+Version: 0.1.0
+Summary: Programmatic AI image generation framework built on ComfyUI and RunPod
+Requires-Python: >=3.9
