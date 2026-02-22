@@ -9,18 +9,23 @@
 | Date | Change | Rationale | Related |
 |------|--------|-----------|---------|
 | 2026-02-22 | Initial architecture doc created | Establish source-of-truth; capture implemented docs/tooling work and upcoming bidirectional conversion design | Plans 001–002; UX request (JSON↔Python↔UI) |
+| 2026-02-22 | Reconciled interop implementation + scoped AI Influencer platform | Keep doc aligned to current codebase; define next epic architecture (file-based Azure storage, LoRA/asset registry, workflow taxonomy, tuning agents) | Plan 003 implemented; AI Influencer epic requirements |
 
 ---
 
 ## Purpose
 
-ComfyCode is a developer-focused Python framework for building and executing ComfyUI workflows programmatically, with optional infrastructure management (RunPod) and a CLI that converts ComfyUI prompt JSON into Python code.
+ComfyCode is the workflow engine and automation substrate for a single product vertical: **hyper-realistic AI influencers**.
 
-A key product requirement emerging from QA + user feedback is a **flexible user experience**:
-- Stay Python-first (avoid relying on the ComfyUI UI for day-to-day work)
-- Still allow occasional UI usage for exploration/debugging
-- Preserve or generate **visually pleasing node layouts** when exporting workflows for the UI
-- Support **bidirectional conversion** (JSON→code and code→JSON)
+It provides:
+- A Python-first way to build and run ComfyUI workflows (images today; video workflows as a target).
+- Batch-oriented execution for generating multiple variants per prompt/character.
+- Workflow interop tooling so teams can still use the ComfyUI UI when helpful (debugging, exploration) while keeping production logic in code.
+
+Primary non-functional constraints for the AI Influencer platform:
+- **Cost-minimized**: avoid always-on infrastructure; prefer file-based persistence.
+- **Azure-first**: storage and simple lookup services should use Azure primitives.
+- **Reproducible**: workflows, LoRA artifacts, and datasets must be versionable and traceable.
 
 ---
 
@@ -36,7 +41,16 @@ A key product requirement emerging from QA + user feedback is a **flexible user 
 - **`runpod_client`**: Provisioning/lifecycle for RunPod pods.
 - **`batch` / `pipeline`**: Orchestration, parameter injection, and repeat execution.
 
-### Interop Goals (New)
+### Interop & Conversion (Current)
+
+The following interop components exist in the codebase as of Plan 003 implementation:
+- **`formats`**: explicit format contracts + validation for prompt JSON vs UI JSON.
+- **`ir`**: internal workflow IR (nodes/edges) with prompt JSON ↔ IR conversion.
+- **`export`**: execution-based Python module export contract (`create_workflow()` → prompt JSON).
+- **`layout`**: deterministic layered DAG layout for UI readability.
+- **`ui_export`**: IR/prompt → UI workflow JSON for ComfyUI UI import.
+
+### Interop Model (Current)
 
 To support UI interop, ComfyCode needs to represent workflows at **two different JSON layers**:
 
@@ -48,11 +62,11 @@ To support UI interop, ComfyCode needs to represent workflows at **two different
 2) **UI Workflow JSON** (ComfyUI UI export/import format):
 - Includes: node positions, sizes, UI metadata (exact schema varies by ComfyUI version)
 - Used by: ComfyUI web UI
-- Not currently supported
+- Supported as an **export target** for UI visualization; it is not used for runtime execution.
 
 ---
 
-## Proposed Design: Bidirectional Conversion via an Intermediate Representation (IR)
+## Conversions via an Intermediate Representation (IR)
 
 ### Why an IR
 
@@ -67,7 +81,7 @@ A minimal IR should capture:
 - `edges`: derived from link inputs (node_id + slot references)
 - `metadata` (optional): human-friendly names, grouping/stages, layout hints
 
-### Conversion Matrix (Target)
+### Conversion Matrix
 
 - **Prompt JSON → IR**: parse nodes/inputs; infer edges.
 - **IR → Python**: generate `workflow.add_node(...)` calls; preserve wiring.
@@ -76,6 +90,10 @@ A minimal IR should capture:
 - **IR → Prompt JSON**: straightforward serialization.
 - **IR → UI Workflow JSON**: generate UI nodes + links + **layout**.
 - **UI Workflow JSON → IR**: parse UI export; map to nodes/links; preserve positions in metadata.
+
+Status notes:
+- Prompt JSON ↔ IR, IR → UI JSON, and Python export via `create_workflow()` are implemented.
+- UI JSON → IR import is deferred.
 
 ### Execution-Based “Code → JSON” (Recommended v1)
 
@@ -132,10 +150,8 @@ To keep UX flexible without bloating core runtime APIs:
 
 - **CLI**
   - `comfycode <prompt.json>` remains JSON→Python.
-  - Add new subcommands later (proposal):
-    - `comfycode export <python_file> --prompt-json out.json`
-    - `comfycode export <python_file> --ui-json out_ui.json --layout auto`
-    - `comfycode convert-ui <ui.json> --python out.py`
+  - Supported subcommands include `convert` and `export`.
+  - `export` supports exporting prompt JSON and UI JSON (UI export is opt-in).
 
 - **Python API**
   - Keep `Workflow.build()` returning prompt dict.
@@ -150,6 +166,11 @@ To keep UX flexible without bloating core runtime APIs:
 - **Prompt JSON** is the canonical runtime submission format.
 - **UI JSON** is an interchange format for occasional UI usage.
 - **IR** is internal; used to avoid loss and enable layout.
+
+AI Influencer platform persistence boundaries:
+- **Git repo** holds *small, human-auditable text* assets: workflow definitions, manifests, character/clothing descriptions, and registry indexes.
+- **Azure Storage account (Blob)** holds *large/binary* assets: model checkpoints, LoRA weights, training datasets, reference images, and generated outputs.
+- **Azure Table Storage** (optional) is a thin lookup accelerator; it MUST not become the sole source of truth.
 
 ---
 
@@ -167,6 +188,13 @@ To keep UX flexible without bloating core runtime APIs:
 - Current `converter.convert()` supports only the prompt dict API JSON, not UI export JSON.
 - There is no explicit format contract module describing prompt JSON vs UI JSON.
 - Layout metadata is not modeled; UI import/export is currently unsupported.
+
+AI Influencer platform (next epic) design gaps:
+- No artifact registry for LoRAs/models/datasets (file-based index + lookup required).
+- No character/clothing asset repository conventions.
+- No quality gates or scoring to select “best” variants from large batches.
+- No workflow taxonomy and packaging structure for photo vs LoRA vs video workflows.
+- No automated documentation generation for workflow/library inventory.
 
 ---
 
@@ -192,8 +220,169 @@ To keep UX flexible without bloating core runtime APIs:
   - + simpler implementation
   - − requires guardrails against side effects
 
+### D003 — Prefer file-based artifacts + Azure Tables for lookup (AI Influencer)
+
+- **Context**: Cost must stay low; infra should scale-to-zero. The product needs to store LoRAs, models, datasets, and character/clothing assets with searchable metadata.
+- **Choice**: Use a **hybrid file-based registry**:
+  - Store **metadata/registries/manifests** as JSON/YAML in the **git repo**.
+  - Store **large binaries and images** in **Azure Blob Storage**, referenced by URI + content hash from the repo metadata.
+  - Use **Azure Table Storage** only as an optional, thin lookup index (mirrors repo metadata keys → blob prefixes).
+- **Alternatives**: Cosmos DB; SQL; full search service.
+- **Consequences**:
+  - + very low baseline cost
+  - + simple mental model (repo metadata + blob files are source of truth)
+  - − querying is limited (requires careful key design)
+  - − eventual consistency / manual reindexing considerations
+
+### D004 — Workflow taxonomy by intent (AI Influencer)
+
+- **Context**: The product needs multiple workflow families: LoRA training, photo generation (Instagram style), and short video.
+- **Choice**: Treat workflows as a **typed library** with clear categories and standardized inputs/outputs.
+- **Alternatives**: One flat workflows folder; ad-hoc naming.
+- **Consequences**:
+  - + makes automation and documentation generation straightforward
+  - + reduces operational mistakes (wrong workflow in pipeline)
+
+### D005 — Agent-oriented optimization loop (AI Influencer)
+
+- **Context**: Generating “hyper-realistic influencer” output requires iterative tuning (prompts, seeds, negative prompts, ControlNet, LoRA selection) and quality filtering.
+- **Choice**: Introduce internal “agents” as deterministic services (not autonomous black boxes) that propose parameter changes and record decisions.
+- **Alternatives**: Manual iteration only.
+- **Consequences**:
+  - + scalable tuning for batch generation
+  - + auditable improvements over time
+  - − requires clear guardrails + telemetry to avoid runaway costs
+
+### D006 — NSFW is a required label, not a hard blocker
+
+- **Context**: The influencer use case may intentionally produce NSFW content; the system still needs classification for routing, policy, and downstream handling.
+- **Choice**: Quality scoring MUST include NSFW classification, but the default QualityGate MUST NOT globally reject NSFW outputs. Instead, it should:
+  - label outputs with an `nsfw_score`/`nsfw_class`
+  - route outputs to the appropriate storage path/catalog
+  - optionally enforce user-configured constraints (e.g., "only NSFW" / "only SFW" / "mixed")
+- **Alternatives**: Always block NSFW.
+- **Consequences**:
+  - + supports the core use case while keeping metadata explicit
+  - − requires careful defaults to avoid accidental mixing in downstream pipelines
+
+### D007 — External workflow provenance is mandatory
+
+- **Context**: Initial workflows may be sourced from third parties (“copying” examples). The system must remain maintainable and legally safe.
+- **Choice**: Any externally sourced workflow MUST include provenance metadata (source URL/author, license/permission, date acquired) and be stored as an immutable baseline, with derived variants tracked.
+- **Alternatives**: Ad-hoc copying.
+- **Consequences**:
+  - + enables reproducibility and responsible reuse
+  - − requires lightweight metadata discipline
+
 ---
 
 ## Roadmap Readiness
 
-This capability should be tracked as a dedicated future epic (post-Epic 0.1 docs), since it introduces new user-facing functionality and format contracts.
+Interop capability has been implemented (Plan 003).
+
+Next epic readiness (AI Influencer platform):
+- Architecture has an agreed persistence strategy (file-based + Azure Blob + Azure Tables).
+- Planning MUST define concrete folder conventions, index keys, and batch quality gates for the first vertical slice.
+
+---
+
+## AI Influencer Platform — Target Architecture (Pre-Planning Assessment)
+
+This section scopes the AI Influencer epic(s). It is an architectural assessment and is not a claim that the components are already implemented.
+
+### Workflow Taxonomy (Required)
+
+Workflows MUST be organized by intent and have standardized contracts:
+
+1) **LoRA workflows**
+- Dataset curation/prep workflows (captioning, bucketing, face crop validation)
+- Training workflows (external trainer integration; ComfyUI-based training if used)
+- Evaluation workflows (fixed prompt suite → scored outputs)
+
+2) **Instagram-style photo workflows**
+- Portrait and lifestyle presets
+- Outfit/application support (clothing references)
+- Consistency controls (LoRA + reference images / adapters)
+
+3) **Short video workflows**
+- Image→video / video→video templates
+- Identity lock (consistent face/body)
+- Output slicing + thumbnail selection
+
+### File-Based Artifact Registry (Required)
+
+Artifacts are stored as files with JSON metadata.
+
+Source of truth split:
+- **Repo (git)**: small metadata and indexes (text files)
+- **Blob**: large binaries and images
+- **Tables (optional)**: thin lookup mirror for faster access
+
+Repo layout (workspace-relative conceptual):
+- `registry/models/{model_id}.json`
+- `registry/loras/{lora_id}.json`
+- `registry/datasets/{dataset_id}.json`
+- `registry/characters/{character_id}.json`
+- `registry/clothing/{item_id}.json`
+- `workflows/photo/...`
+- `workflows/lora/...`
+- `workflows/video/...`
+
+All registry entries MUST reference blob assets by `blob_uri` (or prefix) and include a content hash (e.g., sha256) when applicable.
+
+Canonical storage (Blob) layout (conceptual):
+- `artifacts/models/{model_id}/model.safetensors`
+- `artifacts/models/{model_id}/metadata.json`
+- `artifacts/loras/{lora_id}/lora.safetensors`
+- `artifacts/loras/{lora_id}/metadata.json`
+- `artifacts/datasets/{dataset_id}/manifest.json`
+- `artifacts/datasets/{dataset_id}/images/...`
+- `characters/{character_id}/profile.json`
+- `characters/{character_id}/reference_images/...`
+- `clothing/{item_id}/images/...`
+- `clothing/{item_id}/metadata.json`
+
+Azure Tables (lookup) entities (minimum viable):
+- **Characters**: `PartitionKey="character"`, `RowKey=character_id`, `blob_prefix`, `status`, `updated_at`
+- **LoRAs**: `PartitionKey="lora"`, `RowKey=lora_id`, `blob_prefix`, `character_id`, `base_model_id`, `updated_at`
+- **Clothing**: `PartitionKey="clothing"`, `RowKey=item_id`, `blob_prefix`, `tags`
+
+### Batch Generation + Variant Management (Required)
+
+Batch generation is a first-class workflow:
+- Generate N variants (seeds / prompts / control params)
+- Score outputs (aesthetic, face consistency, NSFW classification, artifact detection)
+- Select top-K and record provenance (workflow version + parameters + artifact IDs)
+
+NSFW handling requirements:
+- NSFW MUST be scored/labeled.
+- Output selection MAY filter by NSFW class depending on the run goal, but NSFW content is not globally blocked.
+
+### Agent Roles (Required)
+
+Agents are scoped services that produce proposals + records:
+- **WorkflowTuner**: suggests prompt/control parameter changes for better realism/consistency.
+- **VariantPlanner**: generates parameter grids for batch runs (seeds/outfits/poses).
+- **QualityGate**: scores and filters outputs; outputs structured reasons.
+- **QualityGate**: scores and filters outputs; outputs structured reasons; includes NSFW labeling + routing.
+- **LoRATrainer**: orchestrates training job execution and registers resulting LoRA artifact.
+- **DatasetCurator**: manages clothing/character reference sets and dataset manifests.
+
+### Workflow Sourcing & Baselines (Required)
+
+Initial workflow development may be based on third-party examples.
+
+Requirements:
+- Store sourced workflows under the workflow taxonomy with an explicit provenance block (source/author/license/date).
+- Treat the sourced workflow as an immutable baseline; track modifications as derived variants.
+- Do not embed or redistribute proprietary assets without permission.
+
+### Auto-Updating Documentation (Required)
+
+Documentation MUST be generated from the source-of-truth inventories:
+- Workflow library inventory (by taxonomy)
+- Artifact registry summaries (models/loras/datasets)
+- Character/clothing catalog summaries
+
+The generator should run in CI (or a local command) and update docs deterministically from repo + blob manifests.
+

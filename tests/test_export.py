@@ -278,3 +278,50 @@ def create_workflow():
             os.unlink(module_path)
             if os.path.exists(output_path):
                 os.unlink(output_path)
+
+    def test_cli_export_ui_json(self):
+        """CLI export with --ui flag produces UI JSON format."""
+        import subprocess
+
+        module_code = '''
+from comfycode import Workflow
+
+def create_workflow():
+    wf = Workflow()
+    checkpoint = wf.add_node("CheckpointLoaderSimple", ckpt_name="test.ckpt")
+    wf.add_node("KSampler", model=checkpoint.output(0))
+    return wf
+'''
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".py", delete=False
+        ) as f:
+            f.write(module_code)
+            module_path = f.name
+
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "comfycode", "export", module_path, "--ui"],
+                capture_output=True,
+                text=True,
+                cwd=Path(__file__).parent.parent,
+            )
+            
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            output = json.loads(result.stdout)
+            
+            # UI JSON structure checks
+            assert "nodes" in output
+            assert "links" in output
+            assert "version" in output
+            assert "last_node_id" in output
+            assert "last_link_id" in output
+            
+            # Should have 2 nodes
+            assert len(output["nodes"]) == 2
+            
+            # Nodes should have positions
+            for node in output["nodes"]:
+                assert "pos" in node
+                assert "type" in node
+        finally:
+            os.unlink(module_path)

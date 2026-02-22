@@ -2,7 +2,7 @@
 
 Commands:
     convert — Convert a ComfyUI workflow JSON file to Python code
-    export  — Export a Python workflow module to prompt JSON
+    export  — Export a Python workflow module to prompt JSON or UI JSON
 
 Usage::
 
@@ -13,6 +13,9 @@ Usage::
     # Export Python to JSON (requires create_workflow() function)
     python -m comfycode export path/to/workflow.py
     python -m comfycode export path/to/workflow.py -o output.json
+
+    # Export Python to UI JSON (for ComfyUI import with visual layout)
+    python -m comfycode export path/to/workflow.py --ui -o workflow_ui.json
 
     # Backward compatible: bare workflow.json defaults to convert
     python -m comfycode path/to/workflow.json
@@ -57,7 +60,14 @@ def cmd_export(args: argparse.Namespace) -> int:
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
-    output = json.dumps(prompt, indent=2)
+    # Convert to UI JSON if requested
+    if getattr(args, "ui", False):
+        from comfycode.ui_export import prompt_to_ui_json
+        result = prompt_to_ui_json(prompt)
+    else:
+        result = prompt
+
+    output = json.dumps(result, indent=2)
 
     if args.output == "-":
         sys.stdout.write(output)
@@ -118,7 +128,7 @@ def main() -> int:
     # Export subcommand
     export_parser = subparsers.add_parser(
         "export",
-        help="Export a Python workflow module to prompt JSON.",
+        help="Export a Python workflow module to prompt JSON or UI JSON.",
     )
     export_parser.add_argument(
         "module",
@@ -128,6 +138,11 @@ def main() -> int:
         "-o", "--output",
         default="-",
         help="Output file path. Defaults to stdout (-).",
+    )
+    export_parser.add_argument(
+        "--ui",
+        action="store_true",
+        help="Export as UI JSON for ComfyUI import (includes layout positions).",
     )
     export_parser.set_defaults(func=cmd_export)
     

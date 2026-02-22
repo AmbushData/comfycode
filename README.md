@@ -148,6 +148,74 @@ for output in outputs:
     print(f"Node {output['node_id']}: {output['type']} -> {output['files']}")
 ```
 
+## UI Interop
+
+ComfyCode supports bidirectional conversion between ComfyUI workflow formats:
+
+| Direction | Command | Use Case |
+|-----------|---------|----------|
+| **JSON → Python** | `python -m comfycode convert workflow.json` | Version-control existing UI workflows |
+| **Python → JSON** | `python -m comfycode export workflow.py` | Generate prompt JSON for API submission |
+| **Python → UI JSON** | `python -m comfycode export workflow.py --ui` | Import Python workflows into ComfyUI UI |
+
+### Conversion Flows
+
+#### UI-Assisted Workflow: Start in ComfyUI, Maintain in Python
+
+1. Design a workflow in the ComfyUI web UI
+2. Export as JSON (Save API format)
+3. Convert to Python: `python -m comfycode convert workflow.json -o workflow.py`
+4. Edit and version-control the Python code
+5. Execute via API or re-import to UI
+
+#### Python-First Workflow: Build and Test in Code
+
+1. Build workflow programmatically using the `Workflow` API
+2. Test with ComfyUI API execution
+3. Export to UI JSON for visual inspection: `python -m comfycode export workflow.py --ui -o workflow_ui.json`
+4. Import into ComfyUI UI to visualize and refine
+
+### Export Contract
+
+To export a Python workflow, define a `create_workflow()` function as the module's entrypoint:
+
+```python
+# my_workflow.py
+from comfycode import Workflow
+
+def create_workflow():
+    """Required entrypoint for export."""
+    wf = Workflow()
+    checkpoint = wf.add_node("CheckpointLoaderSimple", ckpt_name="model.ckpt")
+    # ... build workflow ...
+    return wf.build()
+```
+
+Export to prompt JSON (for API submission):
+```bash
+python -m comfycode export my_workflow.py -o prompt.json
+```
+
+Export to UI JSON (for ComfyUI import with visual layout):
+```bash
+python -m comfycode export my_workflow.py --ui -o workflow_ui.json
+```
+
+### Limitations
+
+**Lossiness:** Conversion between formats is lossy in both directions:
+
+| Prompt JSON → UI JSON (lost) | UI JSON → Prompt JSON (lost) |
+|------------------------------|------------------------------|
+| Node positions (regenerated) | Groups and frames |
+| Visual links (regenerated) | Colors and styles |
+| Group assignments | Collapsed/pinned state |
+| | Notes and comments |
+
+The layout algorithm generates deterministic left-to-right node positions based on the workflow's data flow topology, suitable for visualization but not matching original UI positions.
+
+**Supported versions:** ComfyUI prompt JSON format (unversioned), UI JSON version 0.4.
+
 ### Python: Full Pipeline with RunPod
 
 For cloud execution with automatic GPU provisioning:
@@ -262,7 +330,12 @@ ComfyCode is organized in layered modules that can be used independently or comp
 | **`workflow`** | Workflow building and JSON templating with parameter injection |
 | **`batch`** | Execute multiple parameterized workflow variants sequentially |
 | **`pipeline`** | Top-level orchestration tying all layers together |
-| **`converter`** | CLI tool to convert ComfyUI JSON workflows to Python code |
+| **`converter`** | JSON-to-Python conversion with `ir_to_python()` function |
+| **`export`** | Python-to-JSON export via `create_workflow()` entrypoint |
+| **`formats`** | Format contracts and validation for prompt JSON and UI JSON |
+| **`ir`** | Internal workflow intermediate representation for conversions |
+| **`layout`** | Deterministic DAG layout algorithm for node positioning |
+| **`ui_export`** | Export workflow IR to ComfyUI UI JSON format |
 
 ## API Reference
 
@@ -366,14 +439,19 @@ pytest tests/test_workflow.py
 ```
 comfycode/
 ├── __init__.py          # Package exports
-├── __main__.py          # CLI entry point
+├── __main__.py          # CLI entry point (convert, export subcommands)
 ├── config.py            # Configuration management
 ├── runpod_client.py     # RunPod API client
 ├── comfyui_client.py    # ComfyUI API client
 ├── workflow.py          # Workflow builder
 ├── batch.py             # Batch processing
 ├── pipeline.py          # Pipeline orchestration
-└── converter.py         # JSON-to-Python converter
+├── converter.py         # JSON-to-Python converter
+├── export.py            # Python-to-JSON export
+├── formats.py           # Format contracts and validation
+├── ir.py                # Workflow intermediate representation
+├── layout.py            # DAG layout algorithm
+└── ui_export.py         # UI JSON export with layout
 
 tests/                   # Unit tests
 workflows/               # Example workflow JSON files

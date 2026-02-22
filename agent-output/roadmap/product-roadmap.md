@@ -15,8 +15,9 @@
 
 ## Master Product Objective
 
-**Enable developers to build, test, and deploy production-grade AI image generation pipelines programmatically through Python-native workflows, with automated infrastructure provisioning and full version control.**
+**Create hyper-realistic AI influencers with consistent character identity, automated content generation across multiple formats (photos, videos), and production-ready asset management—enabling scalable, cost-efficient influencer operations on Azure.**
 
+🚨 **UPDATED 2026-02-22** — Strategic pivot to AI influencer vertical.
 🚨 **IMMUTABLE** — Only user can modify this objective.
 
 ---
