@@ -19,3 +19,16 @@ env/
 # Type checkers / linters
 .mypy_cache/
 .ruff_cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+output/

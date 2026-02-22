@@ -11,12 +11,17 @@
       "width": 512,
       "height": 512,
       "batch_size": 1
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "a photo of a cat",
+      "clip": ["1", 1]
     }
   },
   "3": {
     "class_type": "CLIPTextEncode",
     "inputs": {
       "text": "a photo of a cat sitting on a windowsill, golden hour lighting, detailed fur",
+      "text": "ugly, blurry, low quality",
       "clip": ["1", 1]
     }
   },
@@ -25,6 +30,11 @@
     "inputs": {
       "text": "ugly, blurry, low quality, watermark",
       "clip": ["1", 2]
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 512,
+      "height": 512,
+      "batch_size": 1
     }
   },
   "5": {
@@ -40,6 +50,16 @@
       "positive": ["3", 0],
       "negative": ["4", 0],
       "latent_image": ["2", 0]
+      "model": ["1", 0],
+      "positive": ["2", 0],
+      "negative": ["3", 0],
+      "latent_image": ["4", 0],
+      "seed": 0,
+      "steps": 20,
+      "cfg": 7.0,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": 1.0
     }
   },
   "6": {
@@ -54,6 +74,8 @@
     "inputs": {
       "filename_prefix": "txt2img",
       "images": ["6", 0]
+      "images": ["6", 0],
+      "filename_prefix": "comfycode_output"
     }
   }
 }
