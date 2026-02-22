@@ -10,6 +10,7 @@
 | 2026-02-22 14:00 | Initial roadmap created | Establish strategic direction and track v0.1.x work |
 | 2026-02-22 16:30 | Added Epic 0.7 (UI interop + bidirectional conversion) | Support flexible UX with optional ComfyUI UI usage |
 | 2026-02-22 16:30 | Updated Active Release Tracker | Reflect plans executed for v0.1.1 |
+| 2026-02-22 18:30 | Pivoted roadmap to AI Influencer MVP | Align releases/epics to new Master Product Objective and file-based Azure storage constraints |
 
 ---
 
@@ -17,8 +18,8 @@
 
 **Create hyper-realistic AI influencers with consistent character identity, automated content generation across multiple formats (photos, videos), and production-ready asset management—enabling scalable, cost-efficient influencer operations on Azure.**
 
-🚨 **UPDATED 2026-02-22** — Strategic pivot to AI influencer vertical.
-🚨 **IMMUTABLE** — Only user can modify this objective.
+**UPDATED 2026-02-22** — Strategic pivot to AI influencer vertical.
+**IMMUTABLE** — Only user can modify this objective.
 
 ---
 
@@ -67,6 +68,39 @@ So that **I can understand the value proposition, install the package, and run m
 ## Release v0.2.0 - Production Readiness (Future)
 **Target Date**: TBD
 **Strategic Goal**: Enable confident production deployment with observability, error recovery, and cost optimization.
+
+### Epic 0.7: Workflow UI Interop & Bidirectional Conversion
+**Priority**: P1
+**Status**: QA Complete (UAT Pending)
+
+**User Story**:
+As a **developer building ComfyCode workflows in Python**,
+I want **bidirectional conversion between Python and ComfyUI workflows (JSON) with pleasant visual layout for the UI**,
+So that **I can iterate programmatically most of the time while still using the ComfyUI UI when it’s helpful**.
+
+**Business Value**:
+- Enables a flexible user experience (Python-first + UI-assisted iteration)
+- Reduces friction when importing existing UI workflows into code
+- Makes it easier to debug, explore, and share workflows across developer/non-developer collaborators
+
+**Dependencies**:
+- Epic 0.1 (documentation + baseline workflow model)
+
+**Acceptance Criteria** (outcome-focused):
+- [ ] **JSON → Python** conversion remains supported and stable (existing CLI path)
+- [ ] **Python → prompt JSON** export is supported for workflows built with ComfyCode
+- [ ] **Prompt JSON → UI workflow JSON** export is supported with deterministic, visually readable node placement
+- [ ] Exported UI workflow JSON can be imported into the ComfyUI UI without manual repairs
+- [ ] Layout algorithm is deterministic (same graph → same positions) and avoids node overlap by default
+- [ ] UI metadata is preserved when converting from UI JSON (positions retained unless reflow is requested)
+
+**Constraints**:
+- Keep Python-first execution path canonical; UI interop is optional tooling
+- Avoid unsafe execution patterns for “code → JSON” export (must have guardrails/documented limitations)
+- No new UX surfaces beyond CLI/API needed to support conversion workflows
+
+**Status Notes**:
+- 2026-02-22: Implemented and QA validated via Plan 003; manual ComfyUI UI import remains deferred to UAT.
 
 ### Epic 0.2: Observability & Telemetry
 **Priority**: P1
@@ -129,42 +163,67 @@ So that **temporary network issues or pod restarts don't fail my entire batch**.
 
 ---
 
-### Epic 0.7: Workflow UI Interop & Bidirectional Conversion
-**Priority**: P1
-**Status**: Backlog
+## Release v0.3.0 - AI Influencer MVP (File-Based Platform)
+**Target Date**: TBD
+**Strategic Goal**: Enable consistent AI influencer creation at low cost with reusable workflow library sections (photo / LoRA / video), a file-based asset registry (git + Azure Blob), and batch variant scoring/selection.
+
+### Epic 1.0: AI Influencer Asset Registry + Workflow Library
+**Priority**: P0
+**Status**: Planned
 
 **User Story**:
-As a **developer building ComfyCode workflows in Python**,
-I want **bidirectional conversion between Python and ComfyUI workflows (JSON) with pleasant visual layout for the UI**,
-So that **I can iterate programmatically most of the time while still using the ComfyUI UI when it’s helpful**.
+As a **team building hyper-realistic AI influencers**,
+I want **a structured workflow library and a low-cost, file-based registry for characters/clothing/LoRAs/models**, 
+So that **we can generate consistent content in batch, track provenance, and scale without expensive always-on services**.
 
 **Business Value**:
-- Enables a flexible user experience (Python-first + UI-assisted iteration)
-- Reduces friction when importing existing UI workflows into code
-- Makes it easier to debug, explore, and share workflows across developer/non-developer collaborators
+- Establishes the core product surface for influencer generation
+- Enables repeatable, version-controlled content production
+- Keeps operational cost low (git + storage account; optional tables)
 
 **Dependencies**:
-- Epic 0.1 (documentation + baseline workflow model)
+- Epic 0.7 (UI interop) for optional UI viewing/debugging
 
 **Acceptance Criteria** (outcome-focused):
-- [ ] **JSON → Python** conversion remains supported and stable (existing CLI path)
-- [ ] **Python → prompt JSON** export is supported for workflows built with ComfyCode
-- [ ] **Prompt JSON → UI workflow JSON** export is supported with deterministic, visually readable node placement
-- [ ] Exported UI workflow JSON can be imported into the ComfyUI UI without manual repairs
-- [ ] Layout algorithm is deterministic (same graph → same positions) and avoids node overlap by default
-- [ ] UI metadata is preserved when converting from UI JSON (positions retained unless reflow is requested)
+- [ ] Workflow library has distinct sections: photo (Instagram), LoRA, short video
+- [ ] Externally sourced workflows are tracked with provenance (source/license/date)
+- [ ] Characters, clothing, LoRAs, models have text metadata in-repo and binary assets in storage
+- [ ] Batch generation supports producing multiple variants and recording scores (including NSFW labeling/routing)
+- [ ] Auto-updating documentation summarizes workflow inventory and registry contents
 
 **Constraints**:
-- Keep Python-first execution path canonical; UI interop is optional tooling
-- Avoid unsafe execution patterns for “code → JSON” export (must have guardrails/documented limitations)
-- No new UX surfaces beyond CLI/API needed to support conversion workflows
-
-**Status Notes**:
-- 2026-02-22: Added in response to flexible UX requirement; requires format contract and layout strategy
+- Prefer file-based persistence; optional Azure Tables as thin lookup mirror
+- NSFW is required as a label; must not be globally blocked
 
 ---
 
-## Release v0.3.0 - Ecosystem Integration (Future)
+### Epic 1.1: Agent Memory Tools (Run Journaling + Retrieval Substrate)
+**Priority**: P0
+**Status**: Planned
+
+**User Story**:
+As a **team running multiple influencer-generation agents**,
+I want **a durable, queryable memory substrate (run journals, summaries, decisions, and artifact pointers)**,
+So that **agents can stay consistent across long-running efforts and avoid re-discovering the same constraints repeatedly**.
+
+**Business Value**:
+- Enables consistent character identity over time ("what worked" persists)
+- Supports batch iteration and workflow tuning with traceable history
+- Keeps cost low by using file-based memory + optional thin index
+
+**Acceptance Criteria** (outcome-focused):
+- [ ] Every batch run produces a durable journal record with pointers to inputs/outputs and selection rationale
+- [ ] Memory records are storable in git (small text) and link to Blob artifacts (large binaries/images)
+- [ ] Retrieval is possible via deterministic indexing (file-based) and can be mirrored to Azure Tables optionally
+- [ ] NSFW is treated as a label and stored for routing; not used as a global block
+
+**Constraints**:
+- Prefer file-based memory storage; avoid always-on databases
+- Must not store secrets; redact tokens/keys
+
+---
+
+## Release v0.4.0 - Ecosystem Integration (Future)
 **Target Date**: TBD
 **Strategic Goal**: Integrate with common developer workflows (CI/CD, cloud storage, notification systems).
 
@@ -242,16 +301,18 @@ So that **my workflows are reproducible across different ComfyUI servers**.
 
 ## Active Release Tracker
 
-**Current Working Release**: v0.1.1
+**Current Working Release**: v0.3.0
 
-| Plan ID | Title | UAT Status | Committed |
-|---------|-------|------------|----------|
-| 001 | README Developer Onboarding | Pending | No |
-| 002 | uv sync + Dev Dependencies + README Corrections | Pending | No |
+| Plan ID | Title | Target Release | Status | UAT Status | Committed |
+|---------|-------|----------------|--------|------------|----------|
+| 001 | README Developer Onboarding | v0.1.1 | QA Complete | N/A | Yes |
+| 002 | uv sync + Dev Dependencies + README Corrections | v0.1.1 | Implemented | N/A | Yes |
+| 003 | Workflow UI Interop & Bidirectional Conversion | v0.2.0 | QA Complete | Pending (ComfyUI UI import) | Yes |
+| 004 | AI Influencer Asset Registry + Workflow Library | v0.3.0 | Planned | N/A | No |
 
-**Release Status**: 0 of 2 plans committed
+**Release Status**: 3 of 4 plans committed (pending Plan 004)
 **Ready for Release**: No
-**Blocking Items**: DevOps version bump to v0.1.1 + UAT sign-off
+**Blocking Items**: Plan 004 implementation + v0.1.1 version bump artifacts + Plan 003 UAT sign-off
 
 ### Previous Releases
 | Version | Date | Plans Included | Status |

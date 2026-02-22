@@ -7,12 +7,13 @@ name = "comfycode"
 version = "0.1.0"
 description = "Programmatic ComfyUI workflow builder and JSON-to-Python converter"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = "==3.10"
 license = { text = "MIT" }
 dependencies = [
     "requests>=2.31.0",
     "websocket-client>=1.7.0",
     "Pillow>=10.0.0",
+    "pydantic>=2.0.0",
 ]
 
 [project.optional-dependencies]
