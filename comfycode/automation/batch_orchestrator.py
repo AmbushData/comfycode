@@ -3,11 +3,19 @@ Batch Workflow Orchestrator for AI Influencer Automation
 
 Executes influencer × clothing × prompt grid, tracks provenance, and routes outputs.
 """
-from typing import List, Dict
+from typing import List, Dict, Any
+from pydantic import BaseModel, ValidationError
 from comfycode.automation.prompt_generator import PromptGenerator
 from comfycode.automation.lora_registry import LoRARegistry
 from comfycode.automation.clothing_catalog import ClothingCatalog
 import json
+
+class BatchResultEntry(BaseModel):
+    influencer_id: str
+    prompt: str
+    loras: Any
+    clothing: Any
+    provenance: Dict[str, str]
 
 class BatchWorkflowOrchestrator:
     def __init__(self, prompt_generator: PromptGenerator, lora_registry: LoRARegistry, clothing_catalog: ClothingCatalog):
@@ -15,16 +23,25 @@ class BatchWorkflowOrchestrator:
         self.lora_registry = lora_registry
         self.clothing_catalog = clothing_catalog
 
-    def run_grid(self, influencer_ids: List[str], n_prompts: int = 5, n_clothing: int = 3) -> Dict[str, List[Dict]]:
+    def run_grid(self, influencer_ids: List[str], n_prompts: int = 5, n_clothing: int = 3) -> Dict[str, List[BatchResultEntry]]:
         results = {}
         for influencer_id in influencer_ids:
-            prompts = self.prompt_generator.batch_generate([influencer_id], n_per_influencer=n_prompts)[influencer_id]
-            clothing_items = self.clothing_catalog.batch_select(influencer_id, n_items=n_clothing)
+            try:
+                prompts = self.prompt_generator.batch_generate([influencer_id], n_per_influencer=n_prompts)[influencer_id]
+            except Exception as e:
+                prompts = []
+            try:
+                clothing_items = self.clothing_catalog.batch_select(influencer_id, n_items=n_clothing)
+            except Exception as e:
+                clothing_items = []
             influencer_results = []
             for prompt in prompts:
-                loras = self.lora_registry.multi_lora_stack(influencer_id, prompt)
+                try:
+                    loras = self.lora_registry.multi_lora_stack(influencer_id, prompt)
+                except Exception as e:
+                    loras = []
                 for clothing in clothing_items:
-                    influencer_results.append({
+                    entry_data = {
                         'influencer_id': influencer_id,
                         'prompt': prompt,
                         'loras': loras,
@@ -34,13 +51,19 @@ class BatchWorkflowOrchestrator:
                             'lora_source': 'LoRARegistry',
                             'clothing_source': 'ClothingCatalog'
                         }
-                    })
+                    }
+                    try:
+                        entry = BatchResultEntry(**entry_data)
+                        influencer_results.append(entry)
+                    except ValidationError:
+                        continue
             results[influencer_id] = influencer_results
         return results
 
-    def store_results(self, results: Dict[str, List[Dict]], storage_path: str):
+    def store_results(self, results: Dict[str, List[BatchResultEntry]], storage_path: str):
+        serializable = {k: [entry.model_dump() for entry in v] for k, v in results.items()}
         with open(storage_path, 'w', encoding='utf-8') as f:
-            json.dump(results, f, indent=2)
+            json.dump(serializable, f, indent=2)
 
 # Example usage
 if __name__ == '__main__':

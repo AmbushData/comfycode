@@ -3,8 +3,68 @@ Clothing Catalog Registry for AI Influencer Automation
 
 Supports per-influencer closet, registry entries, and batch selection logic for clothing/lingerie.
 """
+
 from typing import List, Dict, Optional
 import json
+from pydantic import BaseModel, ValidationError, Field
+
+class ClothingMetadata(BaseModel):
+    type: str = Field(..., description="Clothing type")
+    color: str = Field(..., description="Clothing color")
+    path: str = Field(..., description="Path to clothing image")
+
+class ClothingCatalog:
+    def __init__(self, catalog_path: str):
+        self.catalog_path = catalog_path
+        self.clothing_catalog = self._load_catalog()
+
+    def _load_catalog(self) -> Dict[str, Dict]:
+        try:
+            with open(self.catalog_path, 'r', encoding='utf-8') as f:
+                raw_catalog = json.load(f)
+        except FileNotFoundError:
+            return {}
+        validated_catalog = {}
+        for influencer_id, items in raw_catalog.items():
+            validated_catalog[influencer_id] = {}
+            for clothing_id, meta in items.items():
+                try:
+                    validated_catalog[influencer_id][clothing_id] = ClothingMetadata(**meta)
+                except ValidationError as e:
+                    print(f"Invalid clothing metadata for {influencer_id}/{clothing_id}: {e}")
+        return validated_catalog
+
+    def get_closet(self, influencer_id: str) -> List[str]:
+        return list(self.clothing_catalog.get(influencer_id, {}).keys())
+
+    def batch_select(self, influencer_id: str, n_items: int = 5) -> List[str]:
+        closet = self.get_closet(influencer_id)
+        import random
+        return random.sample(closet, min(n_items, len(closet)))
+
+    def add_clothing(self, influencer_id: str, clothing_id: str, meta: Dict):
+        try:
+            validated_meta = ClothingMetadata(**meta)
+        except ValidationError as e:
+            print(f"Invalid clothing metadata for {influencer_id}/{clothing_id}: {e}")
+            return
+        if influencer_id not in self.clothing_catalog:
+            self.clothing_catalog[influencer_id] = {}
+        self.clothing_catalog[influencer_id][clothing_id] = validated_meta
+        self._save_catalog()
+
+    def _save_catalog(self):
+        # Convert Pydantic models to dict for JSON serialization
+        serializable_catalog = {}
+        for influencer_id, items in self.clothing_catalog.items():
+            serializable_catalog[influencer_id] = {}
+            for clothing_id, meta in items.items():
+                if isinstance(meta, ClothingMetadata):
+                    serializable_catalog[influencer_id][clothing_id] = meta.dict()
+                else:
+                    serializable_catalog[influencer_id][clothing_id] = meta
+        with open(self.catalog_path, 'w', encoding='utf-8') as f:
+            json.dump(serializable_catalog, f, indent=2)
 
 class ClothingCatalog:
     def __init__(self, catalog_path: str):

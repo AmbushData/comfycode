@@ -61,10 +61,10 @@ class TestBatchWorkflowOrchestrator(unittest.TestCase):
         self.assertTrue(len(results['influencer1']) > 0)
         self.assertTrue(len(results['influencer2']) > 0)
         for entry in results['influencer1']:
-            self.assertIn('prompt', entry)
-            self.assertIn('loras', entry)
-            self.assertIn('clothing', entry)
-            self.assertIn('provenance', entry)
+            self.assertTrue(hasattr(entry, 'prompt'))
+            self.assertTrue(hasattr(entry, 'loras'))
+            self.assertTrue(hasattr(entry, 'clothing'))
+            self.assertTrue(hasattr(entry, 'provenance'))
 
     def test_store_results(self):
         results = self.orchestrator.run_grid(['influencer1'], n_prompts=1, n_clothing=1)
