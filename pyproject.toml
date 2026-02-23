@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "comfycode"
-version = "0.1.0"
+version = "0.6.3"
 description = "Programmatic ComfyUI workflow builder and JSON-to-Python converter"
 readme = "README.md"
 requires-python = "==3.10"

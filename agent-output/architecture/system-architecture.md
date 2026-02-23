@@ -14,6 +14,7 @@
 | 2026-02-22 | Added Workflow Expert agent role | Define specialized agent for ComfyUI workflow creation/improvement/validation with deep domain knowledge | User request for workflow expertise agent |
 | 2026-02-22 | Added D009: RunPod as production GPU runtime | Confirm RunPod over Google Colab for stable, scriptable GPU compute with persistent storage and direct ingress | User decision on production runtime platform |
 | 2026-02-22 | Portability + IaC + CI/CD assessment | Define required package boundaries, Pulumi-based infra, and CI/CD baseline before production planning | Findings 004 portability/IaC/CI/CD |
+| 2026-02-23 | Epic assessment: influencer automation | Architectural review for prompt generation, dynamic LoRA selection, clothing catalog, batch orchestration, and quality scoring/routing | Findings 013 influencer automation |
 
 ---
 
@@ -194,12 +195,39 @@ Portability / production readiness attributes (required as the codebase grows):
 
 ## Problem Areas / Design Debt
 
-- Current `converter.convert()` supports only the prompt dict API JSON, not UI export JSON.
-- There is no explicit format contract module describing prompt JSON vs UI JSON.
-- Layout metadata is not modeled; UI import/export is currently unsupported.
+---
 
-AI Influencer platform (next epic) design gaps:
-- No artifact registry for LoRAs/models/datasets (file-based index + lookup required).
+## AI Influencer Automation Epic — Architectural Findings (2026-02-23)
+
+### New Required Modules
+- **Prompt Generator**: Persona-aware, scenario-driven, explicit prompt library; batch generation; storage integration
+- **LoRA Registry/Selector**: Metadata-driven LoRA catalog; prompt→LoRA mapping; multi-LoRA support
+- **Clothing Catalog**: Per-influencer closet; registry entries; batch selection logic
+- **Batch Workflow Orchestrator**: Grid execution (influencer × clothing × prompt); provenance tracking; output routing
+- **QualityGate Integration**: NSFW scoring, variant selection, routing
+- **Documentation Generator**: Inventory docs from registry/workflow/artifact manifests
+
+### Integration Points
+- Azure Blob Storage: artifact/prompt storage
+- Repo: metadata, registry, workflow definitions
+- ComfyUIClient: workflow execution
+- RunPod: GPU runtime
+- QualityGate: scoring/routing
+
+### Recommendations
+- Implement prompt generator as a modular, extensible component (persona, scenario, explicitness)
+- Design LoRA registry with prompt-driven selection and multi-LoRA stacking
+- Build clothing catalog registry with batch selection logic
+- Extend batch workflow orchestration for influencer/clothing/prompt grids
+- Integrate QualityGate for NSFW scoring/routing
+- Automate documentation generation from registry/workflow/artifact manifests
+
+### Verdict
+APPROVED_WITH_CHANGES — Planning MUST address prompt generation, dynamic LoRA selection, clothing catalog, batch orchestration, and quality scoring/routing. Architecture is sound but requires new modules for automation and registry/catalog integration.
+
+---
+
+
 - No character/clothing asset repository conventions.
 - No quality gates or scoring to select “best” variants from large batches.
 - No workflow taxonomy and packaging structure for photo vs LoRA vs video workflows.

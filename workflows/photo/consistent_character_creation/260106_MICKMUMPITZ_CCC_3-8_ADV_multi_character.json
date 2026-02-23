@@ -1,0 +1,65 @@
+{
+  "id": "multi-character-template-20260222",
+  "revision": 0,
+  "description": "Template for batch character creation. Parameterize LoRA and prompt for 20 characters.",
+  "nodes": [
+    // ...existing nodes, but replace LoRA loader and prompt nodes as below...
+    {
+      "id": "LORA_LOADER_ID",
+      "type": "LoraLoader",
+      "inputs": [
+        {
+          "name": "lora_path",
+          "type": "STRING",
+          "widget": {"name": "lora_path"},
+          "value": "{character_lora_path}"
+        },
+        {
+          "name": "strength",
+          "type": "FLOAT",
+          "widget": {"name": "strength"},
+          "value": "{character_lora_strength}"
+        }
+      ],
+      "outputs": [
+        // ...as in original...
+      ],
+      "properties": {
+        // ...as in original...
+      }
+    },
+    {
+      "id": "PROMPT_NODE_ID",
+      "type": "CLIPTextEncode",
+      "inputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {"name": "prompt"},
+          "value": "{character_prompt}"
+        }
+      ],
+      "outputs": [
+        // ...as in original...
+      ],
+      "properties": {
+        // ...as in original...
+      }
+    },
+    // ...rest of the workflow nodes unchanged...
+    {
+      "id": "SAVE_IMAGE_ID",
+      "type": "SaveImage",
+      "inputs": [
+        {
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {"name": "filename_prefix"},
+          "value": "{character_name}_output"
+        }
+      ],
+      // ...as in original...
+    }
+  ],
+  "batch_note": "To generate 20 characters, run this workflow 20 times with different values for {character_lora_path}, {character_lora_strength}, {character_prompt}, and {character_name}. You can automate this with a script or batch node if supported."
+}
